@@ -1,9 +1,9 @@
 """Domain model for ChatMessage entity."""
 
 from dataclasses import dataclass
+from datetime import datetime
 
 from src.domain.models.message_role import MessageRole
-from src.domain.models.timestamp import Timestamp
 
 
 @dataclass(kw_only=True)
@@ -15,7 +15,7 @@ class ChatMessage:
     provider: str
     role: MessageRole
     content: str
-    timestamp: Timestamp
+    timestamp: datetime
 
     @classmethod
     def create(
@@ -42,7 +42,7 @@ class ChatMessage:
             provider=provider,
             role=role,
             content=content,
-            timestamp=Timestamp.now(),
+            timestamp=datetime.now(),
         )
 
     def to_dict(self) -> dict[str, str | int]:

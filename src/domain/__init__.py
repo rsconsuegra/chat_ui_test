@@ -13,7 +13,6 @@ from src.domain.errors import (
 from src.domain.models import (
     ChatMessage,
     MessageRole,
-    Timestamp,
     User,
 )
 from src.domain.repositories import (
@@ -32,7 +31,6 @@ __all__ = [
     ValidationError.__name__,
     "ChatMessage",
     "MessageRole",
-    "Timestamp",
     "User",
     "IMessageRepository",
     "IUserRepository",

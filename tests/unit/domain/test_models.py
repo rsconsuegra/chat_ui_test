@@ -6,7 +6,6 @@ import pytest
 
 from src.domain.models.chat_message import ChatMessage
 from src.domain.models.message_role import MessageRole
-from src.domain.models.timestamp import Timestamp
 from src.domain.models.user import User
 
 
@@ -89,7 +88,7 @@ class TestChatMessage:
             provider="ollama",
             role=MessageRole.USER,
             content="Hello, world!",
-            timestamp=Timestamp(value=mock_datetime_now),
+            timestamp=mock_datetime_now,
         )
 
         assert message.id == 1
@@ -143,7 +142,7 @@ class TestChatMessage:
             provider="ollama",
             role=MessageRole.USER,
             content="Test",
-            timestamp=Timestamp(value=datetime(2024, 1, 1, 12, 0, 0)),
+            timestamp=datetime(2024, 1, 1, 12, 0, 0),
         )
 
         data = message.to_dict()
@@ -170,58 +169,3 @@ class TestMessageRole:
         """Test role comparison."""
         assert MessageRole.USER == MessageRole.USER
         assert MessageRole.USER != MessageRole.ASSISTANT
-
-
-class TestTimestamp:
-    """Test suite for Timestamp value object."""
-
-    @pytest.mark.unit
-    def test_timestamp_creation(self, mock_datetime_now: datetime) -> None:
-        """Test timestamp creation.
-
-        Args:
-            mock_datetime_now: Fixture providing fixed datetime.
-        """
-        timestamp = Timestamp(value=mock_datetime_now)
-
-        assert timestamp.value == mock_datetime_now
-
-    @pytest.mark.unit
-    def test_timestamp_now(self) -> None:
-        """Test Timestamp.now factory method."""
-        timestamp = Timestamp.now()
-
-        assert isinstance(timestamp.value, datetime)
-
-    @pytest.mark.unit
-    def test_timestamp_isoformat(self, mock_datetime_now: datetime) -> None:
-        """Test timestamp isoformat method.
-
-        Args:
-            mock_datetime_now: Fixture providing fixed datetime.
-        """
-        timestamp = Timestamp(value=mock_datetime_now)
-        iso = timestamp.isoformat()
-
-        assert isinstance(iso, str)
-        assert "2024" in iso
-
-    @pytest.mark.unit
-    def test_timestamp_comparison(self, mock_datetime_now: datetime) -> None:
-        """Test timestamp comparison.
-
-        Args:
-            mock_datetime_now: Fixture providing fixed datetime.
-        """
-        ts1 = Timestamp(value=mock_datetime_now)
-        ts2 = Timestamp(value=mock_datetime_now)
-        # Use same timezone-aware datetime for comparison
-        ts3 = Timestamp(value=mock_datetime_now.replace(day=20))
-
-        # Same datetime should be equal
-        assert ts1.value == ts2.value
-        # Different datetimes should not be equal
-        assert ts1.value != ts3.value
-        # Comparison operators on datetime values
-        assert ts1.value < ts3.value
-        assert ts3.value > ts1.value

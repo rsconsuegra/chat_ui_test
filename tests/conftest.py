@@ -9,7 +9,6 @@ from pytest_mock import MockerFixture
 
 from src.domain.models.chat_message import ChatMessage
 from src.domain.models.message_role import MessageRole
-from src.domain.models.timestamp import Timestamp
 from src.domain.models.user import User
 from src.domain.repositories.message_repository import IMessageRepository
 from src.domain.repositories.user_repository import IUserRepository
@@ -62,7 +61,7 @@ def sample_chat_message(sample_user: User) -> ChatMessage:  # pylint: disable=re
         provider="ollama",
         role=MessageRole.USER,
         content="Hello, this is a test message",
-        timestamp=Timestamp(value=datetime(2024, 1, 1, 12, 0, 0)),
+        timestamp=datetime(2024, 1, 1, 12, 0, 0),
     )
 
 

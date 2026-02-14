@@ -10,7 +10,6 @@ from src.config import (
 from src.domain.models import (
     ChatMessage,
     MessageRole,
-    Timestamp,
     User,
 )
 
@@ -22,6 +21,5 @@ __all__ = [
     ProviderConfig.__name__,
     "ChatMessage",
     "MessageRole",
-    "Timestamp",
     "User",
 ]
