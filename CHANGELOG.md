@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Initial project setup with Clean/Hexagonal architecture
-- Domain models: User, ChatMessage, Timestamp, MessageRole
+- Domain models: User, ChatMessage, MessageRole
 - Repository interfaces: IUserRepository, IMessageRepository
 - Domain exceptions: ChatAppError, ValidationError, StorageError, ConfigurationError, RepositoryError, ProviderError
 - SQLite database with proper schema and indexes
@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Migrated from Python-based database initialization to SQL migration system
 - Converted old test suite to pytest-based unit tests with mocking
 - Removed hardcoded SQL from Python code
+- Replaced Timestamp value object with datetime directly (simplification)
 
 ### Documentation
 - Product Requirements Document (PRD) created

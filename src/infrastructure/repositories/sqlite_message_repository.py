@@ -8,7 +8,6 @@ from datetime import datetime
 
 from src.domain.models.chat_message import ChatMessage
 from src.domain.models.message_role import MessageRole
-from src.domain.models.timestamp import Timestamp
 from src.domain.repositories.message_repository import IMessageRepository
 from src.infrastructure.repositories.sqlite_base_repository import SQLiteRepositoryBase
 
@@ -142,5 +141,5 @@ class SQLiteMessageRepository(SQLiteRepositoryBase, IMessageRepository):
             provider=row[2],
             role=MessageRole(row[3]),
             content=row[4],
-            timestamp=Timestamp(value=datetime.fromisoformat(row[5])),
+            timestamp=datetime.fromisoformat(row[5]),
         )
