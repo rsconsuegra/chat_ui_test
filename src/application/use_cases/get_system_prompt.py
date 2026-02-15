@@ -1,7 +1,5 @@
 """Use case for resolving system prompts."""
 
-# pylint: disable=too-few-public-methods
-
 from src.config.prompts import PromptConfig
 
 

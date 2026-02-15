@@ -7,7 +7,7 @@ from typing import Any
 from src.domain.errors.exceptions import RepositoryError, StorageError
 
 
-class SQLiteRepositoryBase:  # pylint: disable=too-few-public-methods
+class SQLiteRepositoryBase:
     """Base class to centralize sqlite execution + error mapping."""
 
     def __init__(self, connection: sqlite3.Connection) -> None:

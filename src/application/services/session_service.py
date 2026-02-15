@@ -4,7 +4,7 @@ from src.domain.models.user import User
 from src.domain.repositories.user_repository import IUserRepository
 
 
-class SessionService:  # pylint: disable=too-few-public-methods
+class SessionService:
     """Service for session-level user operations."""
 
     def __init__(self, *, user_repository: IUserRepository) -> None:

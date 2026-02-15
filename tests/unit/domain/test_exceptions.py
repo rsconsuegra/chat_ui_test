@@ -50,7 +50,7 @@ class TestValidationError:
         assert str(exc_info.value) == "Field is required"
 
 
-class TestStorageError:  # pylint: disable=too-few-public-methods
+class TestStorageError:
     """Test suite for StorageError."""
 
     @pytest.mark.unit
@@ -62,7 +62,7 @@ class TestStorageError:  # pylint: disable=too-few-public-methods
         assert isinstance(error, ChatAppError)
 
 
-class TestConfigurationError:  # pylint: disable=too-few-public-methods
+class TestConfigurationError:
     """Test suite for ConfigurationError."""
 
     @pytest.mark.unit
@@ -94,7 +94,7 @@ class TestRepositoryError:
         assert str(exc_info.value) == "Entity not found"
 
 
-class TestProviderError:  # pylint: disable=too-few-public-methods
+class TestProviderError:
     """Test suite for ProviderError."""
 
     @pytest.mark.unit
