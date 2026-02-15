@@ -8,6 +8,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Frontend adapter architecture for UI decoupling
+  - ISessionAdapter: abstract session management interface
+  - IMessageAdapter: abstract message handling interface
+  - IStreamingMessage: protocol for incremental output
+  - ChainlitSessionAdapter: Chainlit-specific session implementation
+  - ChainlitMessageAdapter: Chainlit-specific message implementation
+- LoadHistoryUseCase: load and format chat history for provider context
+- GetSystemPromptUseCase: resolve system prompt (async for Phase 3 AgentaAI)
+- FrontendError exception for adapter-related errors
+
+### Changed
+- SendMessageUseCase now delegates to LoadHistoryUseCase and GetSystemPromptUseCase
+- main.py simplified to use adapters via Container (better separation of concerns)
+- Container updated with factory methods for all use cases and adapters
+- All `__all__` declarations removed for explicit imports (approach B)
+- All `__init__.py` files simplified to module docstrings only
+- All imports are now direct (no re-exports)
+- Provider imports updated to use direct module paths
+
+### Architecture
+- Frontend is now decoupled from Chainlit via adapter interfaces
+- Replacing frontend would only require implementing ISessionAdapter/IMessageAdapter
+- Clear separation between application layer use cases
+
+---
+
+## [0.2.0] - 2026-02-14
+
+### Phase 1 Complete - MVP Core Chat Functionality
+
+### Added
 - Initial project setup with Clean/Hexagonal architecture
 - Domain models: User, ChatMessage, MessageRole
 - Repository interfaces: IUserRepository, IMessageRepository

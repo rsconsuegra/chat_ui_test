@@ -2,7 +2,7 @@
 
 from logging import getLogger
 
-from src.config import AppConfig, get_config
+from src.config.app import AppConfig, get_config
 from src.infrastructure.container import Container
 from src.infrastructure.database.connection import init_database
 from src.infrastructure.logging import configure_logging

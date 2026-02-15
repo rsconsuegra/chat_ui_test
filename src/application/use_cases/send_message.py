@@ -2,34 +2,46 @@
 
 from collections.abc import AsyncIterator
 
-from src.config.prompts import PromptConfig
 from src.domain.errors.exceptions import ProviderError
 from src.domain.interfaces.provider import Provider, ProviderMessage
 from src.domain.models.chat_message import ChatMessage
 from src.domain.models.message_role import MessageRole
 from src.domain.repositories.message_repository import IMessageRepository
 
+from .get_system_prompt import GetSystemPromptUseCase
+from .load_history import LoadHistoryUseCase
+
 
 class SendMessageUseCase:  # pylint: disable=too-few-public-methods
-    """Handle sending a message and streaming provider responses."""
+    """Orchestrate message sending with provider response streaming.
+
+    This use case coordinates between:
+    - LoadHistoryUseCase: for retrieving chat history
+    - GetSystemPromptUseCase: for resolving the system prompt
+    - Provider: for generating streaming responses
+    - IMessageRepository: for persisting messages
+    """
 
     def __init__(
         self,
         *,
         message_repository: IMessageRepository,
         provider: Provider,
-        prompt_config: PromptConfig,
+        load_history_use_case: LoadHistoryUseCase,
+        get_system_prompt_use_case: GetSystemPromptUseCase,
     ) -> None:
         """Initialize the use case.
 
         Args:
             message_repository: Repository for chat messages.
             provider: Provider used to generate responses.
-            prompt_config: Prompt configuration.
+            load_history_use_case: Use case for loading chat history.
+            get_system_prompt_use_case: Use case for resolving system prompt.
         """
         self._message_repository = message_repository
         self._provider = provider
-        self._prompt_config = prompt_config
+        self._load_history_use_case = load_history_use_case
+        self._get_system_prompt_use_case = get_system_prompt_use_case
 
     async def stream_response(
         self,
@@ -61,17 +73,19 @@ class SendMessageUseCase:  # pylint: disable=too-few-public-methods
         )
         await self._message_repository.save(user_message)
 
-        history = await self._message_repository.find_by_user_id(
-            user_id,
+        history = await self._load_history_use_case.execute(
+            user_id=user_id,
             limit=history_limit,
-            offset=0,
         )
 
-        system_prompt = self._prompt_config.resolve_system_prompt(prompt_variant)
-        provider_messages = [ProviderMessage(role=MessageRole.SYSTEM, content=system_prompt)]
+        system_prompt = await self._get_system_prompt_use_case.execute(
+            variant=prompt_variant,
+        )
 
-        for message in reversed(history):
-            provider_messages.append(ProviderMessage(role=message.role, content=message.content))
+        provider_messages: list[ProviderMessage] = [
+            ProviderMessage(role=MessageRole.SYSTEM, content=system_prompt),
+        ]
+        provider_messages.extend(history)
 
         response_chunks: list[str] = []
 
@@ -81,7 +95,7 @@ class SendMessageUseCase:  # pylint: disable=too-few-public-methods
                 yield token
         except ProviderError:
             raise
-        except Exception as exc:  # pragma: no cover - defensive fallback
+        except Exception as exc:
             raise ProviderError(f"Provider stream failed: {exc}") from exc
 
         response_text = "".join(response_chunks)

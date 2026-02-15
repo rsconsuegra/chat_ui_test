@@ -61,7 +61,7 @@ def test_migrator_creates_tracking_table(
     assert result is not None
 
 
-def test_migrator_applies_sql_files(  # pylint: disable=redefined-outer-name
+def test_migrator_applies_sql_files(
     in_memory_db: sqlite3.Connection,
     migrations_dir: Path,
 ) -> None:
@@ -90,7 +90,7 @@ def test_migrator_applies_sql_files(  # pylint: disable=redefined-outer-name
     assert result is not None
 
 
-def test_migrator_tracks_applied_migrations(  # pylint: disable=redefined-outer-name
+def test_migrator_tracks_applied_migrations(
     in_memory_db: sqlite3.Connection,
     migrations_dir: Path,
 ) -> None:
@@ -112,7 +112,7 @@ def test_migrator_tracks_applied_migrations(  # pylint: disable=redefined-outer-
     assert any(m.migration_id == "002_test_tracking" for m in history)
 
 
-def test_migrator_skips_already_applied(  # pylint: disable=redefined-outer-name
+def test_migrator_skips_already_applied(
     in_memory_db: sqlite3.Connection,
     migrations_dir: Path,
 ) -> None:
@@ -136,7 +136,7 @@ def test_migrator_skips_already_applied(  # pylint: disable=redefined-outer-name
     assert skip_count == 1
 
 
-def test_migrator_applies_migrations_in_order(  # pylint: disable=redefined-outer-name
+def test_migrator_applies_migrations_in_order(
     in_memory_db: sqlite3.Connection,
     migrations_dir: Path,
 ) -> None:
@@ -166,7 +166,7 @@ def test_migrator_applies_migrations_in_order(  # pylint: disable=redefined-oute
     assert migration_ids == expected_order
 
 
-def test_migrator_handles_invalid_sql(  # pylint: disable=redefined-outer-name
+def test_migrator_handles_invalid_sql(
     in_memory_db: sqlite3.Connection,
     migrations_dir: Path,
 ) -> None:
@@ -198,7 +198,7 @@ def test_migration_record_dataclass() -> None:
     assert record.applied_at == datetime(2025, 1, 1, 12, 0, 0)
 
 
-def test_run_migrations_with_config(  # pylint: disable=redefined-outer-name,unused-argument
+def test_run_migrations_with_config(  # pylint disable=unused-argument
     migrations_dir: Path,
 ) -> None:
     """Test run_migrations function with DatabaseConfig.

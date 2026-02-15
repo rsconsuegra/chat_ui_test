@@ -9,7 +9,7 @@ from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
-from src.domain.errors.exceptions import StorageError
+from src.domain.errors.exceptions import RepositoryError, StorageError
 
 
 class AsyncSQLiteRepositoryBase:  # pylint: disable=too-few-public-methods
@@ -124,9 +124,6 @@ class AsyncSQLiteRepositoryBase:  # pylint: disable=too-few-public-methods
         Returns:
             The ID of the newly inserted row.
         """
-        from src.domain.errors.exceptions import (  # pylint: disable=import-outside-toplevel
-            RepositoryError,
-        )
 
         def _insert() -> int:
             try:

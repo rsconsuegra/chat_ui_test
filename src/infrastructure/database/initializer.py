@@ -6,7 +6,7 @@ This module provides backward compatibility while delegating to the migration sy
 from logging import getLogger
 from pathlib import Path
 
-from src.config import AppConfig
+from src.config.app import AppConfig
 from src.domain.errors.exceptions import StorageError
 from src.infrastructure.database.connection import DatabaseConnection
 from src.infrastructure.database.migrator import DatabaseMigrator

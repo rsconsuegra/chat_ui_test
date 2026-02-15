@@ -14,8 +14,8 @@ from src.domain.repositories.message_repository import IMessageRepository
 from src.domain.repositories.user_repository import IUserRepository
 
 
-@pytest.fixture
-def _mock_env_vars(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.fixture(name="_mock_env_vars")
+def _fixture_mock_env_vars(monkeypatch: pytest.MonkeyPatch) -> None:
     """Mock all required environment variables.
 
     Args:
@@ -30,8 +30,8 @@ def _mock_env_vars(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("MEM0_BASE_URL", "http://localhost:8080")
 
 
-@pytest.fixture
-def sample_user() -> User:
+@pytest.fixture(name="sample_user")
+def fixture_sample_user() -> User:
     """Create a sample user for testing.
 
     Returns:
@@ -45,8 +45,8 @@ def sample_user() -> User:
     )
 
 
-@pytest.fixture
-def sample_chat_message(sample_user: User) -> ChatMessage:  # pylint: disable=redefined-outer-name
+@pytest.fixture(name="sample_chat_message")
+def fixture_sample_chat_message(sample_user: User) -> ChatMessage:
     """Create a sample chat message for testing.
 
     Args:
@@ -65,8 +65,8 @@ def sample_chat_message(sample_user: User) -> ChatMessage:  # pylint: disable=re
     )
 
 
-@pytest.fixture
-def mock_user_repository(mocker: MockerFixture) -> IUserRepository:
+@pytest.fixture(name="mock_user_repository")
+def fixture_mock_user_repository(mocker: MockerFixture) -> IUserRepository:
     """Create a mocked user repository.
 
     Args:
@@ -79,8 +79,8 @@ def mock_user_repository(mocker: MockerFixture) -> IUserRepository:
     return repo
 
 
-@pytest.fixture
-def mock_message_repository(mocker: MockerFixture) -> IMessageRepository:
+@pytest.fixture(name="mock_message_repository")
+def fixture_mock_message_repository(mocker: MockerFixture) -> IMessageRepository:
     """Create a mocked message repository.
 
     Args:
@@ -93,8 +93,8 @@ def mock_message_repository(mocker: MockerFixture) -> IMessageRepository:
     return repo
 
 
-@pytest.fixture
-def mock_datetime_now() -> datetime:
+@pytest.fixture(name="mock_datetime_now")
+def fixture_mock_datetime_now() -> datetime:
     """Return a fixed datetime for testing.
 
     Returns:
@@ -103,8 +103,8 @@ def mock_datetime_now() -> datetime:
     return datetime(2024, 1, 15, 10, 30, 0)
 
 
-@pytest.fixture
-def mock_database_connection(mocker: MockerFixture) -> MagicMock:
+@pytest.fixture(name="mock_database_connection")
+def fixture_mock_database_connection(mocker: MockerFixture) -> MagicMock:
     """Create a mocked database connection.
 
     Args:
