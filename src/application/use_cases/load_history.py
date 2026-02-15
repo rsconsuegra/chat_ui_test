@@ -2,7 +2,7 @@
 
 # pylint: disable=too-few-public-methods
 
-from src.domain.interfaces.provider import ProviderMessage
+from src.domain.models.provider_message import ProviderMessage
 from src.domain.repositories.message_repository import IMessageRepository
 
 

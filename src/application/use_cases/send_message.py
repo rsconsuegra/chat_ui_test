@@ -3,9 +3,10 @@
 from collections.abc import AsyncIterator
 
 from src.domain.errors.exceptions import ProviderError
-from src.domain.interfaces.provider import Provider, ProviderMessage
+from src.domain.interfaces.provider import Provider
 from src.domain.models.chat_message import ChatMessage
 from src.domain.models.message_role import MessageRole
+from src.domain.models.provider_message import ProviderMessage
 from src.domain.repositories.message_repository import IMessageRepository
 
 from .get_system_prompt import GetSystemPromptUseCase
