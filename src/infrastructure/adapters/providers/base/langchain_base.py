@@ -11,8 +11,9 @@ from langchain_core.messages import (
     SystemMessage,
 )
 
-from src.domain.interfaces.provider import Provider, ProviderMessage
+from src.domain.interfaces.provider import Provider
 from src.domain.models.message_role import MessageRole
+from src.domain.models.provider_message import ProviderMessage
 
 
 class BaseLangChainProvider(Provider):
