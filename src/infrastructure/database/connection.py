@@ -12,7 +12,7 @@ from logging import getLogger
 from pathlib import Path
 from typing import Any, cast
 
-from src.config import AppConfig, get_config
+from src.config.app import AppConfig, get_config
 from src.domain.errors.exceptions import StorageError
 from src.infrastructure.database.migrator import DatabaseMigrator
 

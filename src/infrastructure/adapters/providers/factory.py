@@ -2,7 +2,9 @@
 
 from src.config.providers import ProviderConfig
 from src.domain.interfaces.provider import Provider
-from src.infrastructure.adapters.providers.ollama import OllamaLangChainProvider
+from src.infrastructure.adapters.providers.ollama.langchain_provider import (
+    OllamaLangChainProvider,
+)
 
 
 def build_provider(config: ProviderConfig, name: str | None = None) -> Provider:  # pylint: disable=unused-argument

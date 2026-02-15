@@ -2,7 +2,9 @@
 
 from langchain_ollama import ChatOllama
 
-from src.infrastructure.adapters.providers.base import BaseLangChainProvider
+from src.infrastructure.adapters.providers.base.langchain_base import (
+    BaseLangChainProvider,
+)
 
 
 class OllamaLangChainProvider(BaseLangChainProvider):

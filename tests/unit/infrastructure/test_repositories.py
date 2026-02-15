@@ -1,4 +1,4 @@
-"""Unit tests for infrastructure layer using mocks."""  # pylint: disable=duplicate-code
+"""Unit tests for infrastructure layer using mocks."""
 
 import sqlite3
 from unittest.mock import MagicMock
