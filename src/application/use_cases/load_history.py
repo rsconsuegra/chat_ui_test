@@ -1,7 +1,5 @@
 """Use case for loading chat history for provider context."""
 
-# pylint: disable=too-few-public-methods
-
 from src.domain.models.provider_message import ProviderMessage
 from src.domain.repositories.message_repository import IMessageRepository
 

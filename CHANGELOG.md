@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Centralized pylint configuration in `.code_quality/.pylintrc`
 - Frontend adapter architecture for UI decoupling
   - ISessionAdapter: abstract session management interface
   - IMessageAdapter: abstract message handling interface
@@ -26,6 +27,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - All `__init__.py` files simplified to module docstrings only
 - All imports are now direct (no re-exports)
 - Provider imports updated to use direct module paths
+- Pre-commit pylint now uses centralized `.pylintrc` config
+- Removed inline pylint disables (moved to centralized config)
 
 ### Architecture
 - Frontend is now decoupled from Chainlit via adapter interfaces

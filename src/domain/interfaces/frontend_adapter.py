@@ -25,7 +25,7 @@ class SessionDataNotFoundError(FrontendError):
     """Raised when required session data is not found."""
 
 
-class IStreamingMessage(Protocol):  # pylint: disable=too-few-public-methods
+class IStreamingMessage(Protocol):
     """Protocol for streaming message output.
 
     This protocol defines the interface for incremental message output,
@@ -38,11 +38,11 @@ class IStreamingMessage(Protocol):  # pylint: disable=too-few-public-methods
         Args:
             token: Text chunk to append.
         """
-        ...  # pylint: disable=unnecessary-ellipsis
+        ...
 
     async def send(self) -> None:
         """Finalize and send the message."""
-        ...  # pylint: disable=unnecessary-ellipsis
+        ...
 
 
 class ISessionAdapter(ABC):

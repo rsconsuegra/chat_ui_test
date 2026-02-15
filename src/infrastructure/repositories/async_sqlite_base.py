@@ -12,7 +12,7 @@ from typing import Any
 from src.domain.errors.exceptions import RepositoryError, StorageError
 
 
-class AsyncSQLiteRepositoryBase:  # pylint: disable=too-few-public-methods
+class AsyncSQLiteRepositoryBase:
     """Base class for async SQLite repositories using thread pool."""
 
     def __init__(self, connection: sqlite3.Connection) -> None:

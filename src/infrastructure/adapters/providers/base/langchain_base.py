@@ -1,7 +1,7 @@
 """Base LangChain provider implementation."""
 
 from abc import abstractmethod
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator, AsyncIterator
 
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import (
@@ -35,12 +35,29 @@ class BaseLangChainProvider(Provider):
         """
         self._llm = llm
 
-    async def stream_response(  # pylint: disable=W0236
+    def stream_response(
         self,
         messages: list[ProviderMessage],
         system_prompt: str | None = None,
     ) -> AsyncIterator[str]:
-        """Stream response from the LangChain model.
+        """Return an async iterator for streaming responses.
+
+        Args:
+            messages: List of messages forming conversation context
+            system_prompt: Optional system prompt to guide model's behavior
+
+        Returns:
+            Async generator yielding response chunks
+
+        """
+        return self._stream_response_impl(messages, system_prompt)
+
+    async def _stream_response_impl(
+        self,
+        messages: list[ProviderMessage],
+        system_prompt: str | None = None,
+    ) -> AsyncGenerator[str, None]:
+        """Stream the response from the LangChain model.
 
         Args:
             messages: List of messages forming conversation context
@@ -48,7 +65,6 @@ class BaseLangChainProvider(Provider):
 
         Yields:
             Chunks of response as they become available
-
         """
         lc_messages = self._convert_messages(messages, system_prompt)
         async for chunk in self._llm.astream(lc_messages):
