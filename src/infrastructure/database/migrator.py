@@ -1,12 +1,16 @@
 """Database migration manager for SQL-based migrations."""
 
-import sqlite3
 from dataclasses import dataclass
 from datetime import datetime
+from logging import getLogger
 from pathlib import Path
+
+import aiosqlite
 
 from src.config.database import DatabaseConfig
 from src.domain.errors.exceptions import StorageError
+
+logger = getLogger(__name__)
 
 DEFAULT_MIGRATIONS_DIR = Path("migrations")
 
@@ -20,61 +24,61 @@ class MigrationRecord:
     applied_at: datetime
 
 
-class DatabaseMigrator:
-    """Handles database migration execution and tracking."""
+class AsyncDatabaseMigrator:
+    """Handles async database migration execution and tracking."""
 
     def __init__(
         self,
-        connection: sqlite3.Connection,
+        connection: aiosqlite.Connection,
         migrations_dir: Path = DEFAULT_MIGRATIONS_DIR,
     ) -> None:
         """Initialize database migrator.
 
         Args:
-            connection: SQLite database connection.
+            connection: aiosqlite database connection.
             migrations_dir: Directory containing SQL migration files.
         """
         self.connection = connection
         self.migrations_dir = migrations_dir
         self._migration_table_name = "schema_migrations"
 
-    def migrate(self) -> None:
+    async def migrate(self) -> None:
         """Apply all pending migrations.
 
         Raises:
             StorageError: If migration fails.
         """
         try:
-            self._ensure_migrations_table()
-            applied_migrations = self._get_applied_migrations()
+            await self._ensure_migrations_table()
+            applied_migrations = await self._get_applied_migrations()
             pending_migrations = self._get_pending_migrations(applied_migrations)
 
             for migration_file in pending_migrations:
-                self._apply_migration(migration_file)
-        except sqlite3.Error as e:
+                await self._apply_migration(migration_file)
+                logger.info("Applied migration: %s", migration_file.stem)
+        except aiosqlite.Error as e:
             raise StorageError(f"Migration failed: {e}") from e
 
-    def _ensure_migrations_table(self) -> None:
+    async def _ensure_migrations_table(self) -> None:
         """Create migrations tracking table if it doesn't exist."""
-        cursor = self.connection.cursor()
-        cursor.execute(f"""
+        await self.connection.execute(f"""
             CREATE TABLE IF NOT EXISTS {self._migration_table_name} (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 migration_id TEXT UNIQUE NOT NULL,
                 applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
-        self.connection.commit()
+        await self.connection.commit()
 
-    def _get_applied_migrations(self) -> set[str]:
+    async def _get_applied_migrations(self) -> set[str]:
         """Get set of applied migration IDs.
 
         Returns:
             Set of migration IDs that have been applied.
         """
-        cursor = self.connection.cursor()
-        cursor.execute(f"SELECT migration_id FROM {self._migration_table_name}")
-        return {row[0] for row in cursor.fetchall()}
+        cursor = await self.connection.execute(f"SELECT migration_id FROM {self._migration_table_name}")
+        rows = await cursor.fetchall()
+        return {row[0] for row in rows}
 
     def _get_pending_migrations(self, applied_migrations: set[str]) -> list[Path]:
         """Get list of pending migration files.
@@ -98,7 +102,7 @@ class DatabaseMigrator:
 
         return pending
 
-    def _apply_migration(self, migration_file: Path) -> None:
+    async def _apply_migration(self, migration_file: Path) -> None:
         """Apply a single migration file.
 
         Args:
@@ -112,34 +116,33 @@ class DatabaseMigrator:
         try:
             sql_content = migration_file.read_text()
 
-            cursor = self.connection.cursor()
-            cursor.executescript(sql_content)
+            await self.connection.executescript(sql_content)
 
-            cursor.execute(
+            await self.connection.execute(
                 f"INSERT INTO {self._migration_table_name} (migration_id) VALUES (?)",
                 (migration_id,),
             )
 
-            self.connection.commit()
+            await self.connection.commit()
 
-        except (OSError, sqlite3.Error) as e:
+        except (OSError, aiosqlite.Error) as e:
             raise StorageError(f"Failed to apply migration {migration_id}: {e}") from e
 
-    def get_migration_history(self) -> list[MigrationRecord]:
+    async def get_migration_history(self) -> list[MigrationRecord]:
         """Get history of applied migrations.
 
         Returns:
             List of migration records in order of application.
         """
-        cursor = self.connection.cursor()
-        cursor.execute(f"""
+        cursor = await self.connection.execute(f"""
             SELECT id, migration_id, applied_at
             FROM {self._migration_table_name}
             ORDER BY id ASC
         """)
+        rows = await cursor.fetchall()
 
         records = []
-        for row in cursor.fetchall():
+        for row in rows:
             record = MigrationRecord(
                 id=row[0],
                 migration_id=row[1],
@@ -150,7 +153,10 @@ class DatabaseMigrator:
         return records
 
 
-def run_migrations(config: DatabaseConfig, migrations_dir: Path | None = None) -> None:
+async def run_migrations(
+    config: DatabaseConfig,
+    migrations_dir: Path | None = None,
+) -> None:
     """Run all pending migrations for database.
 
     Args:
@@ -163,12 +169,12 @@ def run_migrations(config: DatabaseConfig, migrations_dir: Path | None = None) -
     if migrations_dir is None:
         migrations_dir = Path("migrations")
     try:
-        connection = sqlite3.connect(config.path, check_same_thread=False)
-        connection.row_factory = sqlite3.Row
+        connection = await aiosqlite.connect(config.path)
+        connection.row_factory = aiosqlite.Row
 
-        migrator = DatabaseMigrator(connection, migrations_dir)
-        migrator.migrate()
+        migrator = AsyncDatabaseMigrator(connection, migrations_dir)
+        await migrator.migrate()
 
-        connection.close()
-    except sqlite3.Error as e:
+        await connection.close()
+    except aiosqlite.Error as e:
         raise StorageError(f"Migration execution failed: {e}") from e

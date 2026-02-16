@@ -1,94 +1,94 @@
-"""Database connection management.
+"""Database connection management using aiosqlite.
 
-This module provides database connection handling and initialization for the application.
-It manages SQLite connections with async context manager support.
+This module provides async database connection handling and initialization
+for the application.
 """
 
 import asyncio
-import sqlite3
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from logging import getLogger
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
+
+import aiosqlite
 
 from src.config.app import AppConfig, get_config
 from src.domain.errors.exceptions import StorageError
-from src.infrastructure.database.migrator import DatabaseMigrator
+from src.infrastructure.database.migrator import AsyncDatabaseMigrator
 
 logger = getLogger(__name__)
 
-# Global configuration for simple Phase 0 usage
 _GLOBAL_CONFIG: AppConfig | None = None
-_GLOBAL_CONNECTION: sqlite3.Connection | None = None
+_GLOBAL_CONNECTION: aiosqlite.Connection | None = None
+_CONNECTION_LOCK = asyncio.Lock()
 
 
-def init_database(config: AppConfig | None = None) -> None:
-    """Initialize the database schema (synchronous for Phase 0).
+async def init_database(config: AppConfig | None = None) -> aiosqlite.Connection:
+    """Initialize the database schema (async).
 
     Args:
         config: Optional application configuration override.
+
+    Returns:
+        The initialized database connection.
 
     Raises:
         StorageError: If database connection or migrations fail.
     """
     global _GLOBAL_CONFIG, _GLOBAL_CONNECTION  # pylint: disable=global-statement
 
-    if _GLOBAL_CONFIG is None:
-        _GLOBAL_CONFIG = config or get_config()
-    if _GLOBAL_CONFIG is None:
-        logger.error("Database configuration not initialized")
-        raise StorageError("Database configuration not initialized")
-    current_config = cast(AppConfig, _GLOBAL_CONFIG)
+    async with _CONNECTION_LOCK:
+        if _GLOBAL_CONFIG is None:
+            _GLOBAL_CONFIG = config or get_config()
+        if _GLOBAL_CONFIG is None:
+            logger.error("Database configuration not initialized")
+            raise StorageError("Database configuration not initialized")
+
+        if _GLOBAL_CONNECTION is None:
+            try:
+                _GLOBAL_CONNECTION = await aiosqlite.connect(
+                    _GLOBAL_CONFIG.database_path,
+                )
+                _GLOBAL_CONNECTION.row_factory = aiosqlite.Row
+
+                migrator = AsyncDatabaseMigrator(_GLOBAL_CONNECTION, Path("migrations"))
+                await migrator.migrate()
+                logger.info("Database migrations completed")
+            except aiosqlite.Error as exc:
+                logger.exception("Database initialization failed")
+                raise StorageError(f"Database initialization failed: {exc}") from exc
 
     if _GLOBAL_CONNECTION is None:
-        _GLOBAL_CONNECTION = sqlite3.connect(current_config.database_path, check_same_thread=False)
-        _GLOBAL_CONNECTION.row_factory = sqlite3.Row
-
-    try:
-        migrator = DatabaseMigrator(_GLOBAL_CONNECTION, Path("migrations"))
-        migrator.migrate()
-        logger.info("Database migrations completed")
-    except sqlite3.ProgrammingError as exc:
-        if "Cannot operate on a closed database" in str(exc):
-            logger.warning("Database connection closed; reconnecting")
-            _GLOBAL_CONNECTION = sqlite3.connect(current_config.database_path, check_same_thread=False)
-            _GLOBAL_CONNECTION.row_factory = sqlite3.Row
-            migrator = DatabaseMigrator(_GLOBAL_CONNECTION, Path("migrations"))
-            migrator.migrate()
-            logger.info("Database migrations completed after reconnect")
-        else:
-            logger.exception("Database initialization failed")
-            raise StorageError(f"Database initialization failed: {exc}") from exc
-    except sqlite3.Error as exc:
-        logger.exception("Database initialization failed")
-        raise StorageError(f"Database initialization failed: {exc}") from exc
+        raise StorageError("Database connection not initialized after init")
+    return _GLOBAL_CONNECTION
 
 
-def get_connection(config: AppConfig | None = None) -> sqlite3.Connection:
-    """Get global database connection (synchronous for Phase 0).
+async def get_connection(config: AppConfig | None = None) -> aiosqlite.Connection:
+    """Get global database connection (async).
 
     Args:
         config: Optional application configuration override.
 
     Returns:
-        SQLite connection object.
-
-    Raises:
-        StorageError: If database not initialized.
+        aiosqlite connection object.
     """
     if _GLOBAL_CONNECTION is None:
-        init_database(config)
-
-    if _GLOBAL_CONNECTION is None:
-        logger.error("Database connection not initialized")
-        raise StorageError("Database connection not initialized")
-
+        return await init_database(config)
     return _GLOBAL_CONNECTION
 
 
+async def close_connection() -> None:
+    """Close the global database connection."""
+    global _GLOBAL_CONNECTION  # pylint: disable=global-statement
+    async with _CONNECTION_LOCK:
+        if _GLOBAL_CONNECTION is not None:
+            await _GLOBAL_CONNECTION.close()
+            _GLOBAL_CONNECTION = None
+
+
 class DatabaseConnection:
-    """Manages SQLite database connections (async for future phases)."""
+    """Manages SQLite database connections using aiosqlite."""
 
     def __init__(self, config: AppConfig) -> None:
         """Initialize database connection manager.
@@ -97,56 +97,80 @@ class DatabaseConnection:
             config: Database configuration.
         """
         self.config = config
-        self._connection: sqlite3.Connection | None = None
-        self._lock: asyncio.Lock = asyncio.Lock()
+        self._connection: aiosqlite.Connection | None = None
+        self._lock = asyncio.Lock()
 
     @property
-    def connection(self) -> sqlite3.Connection:
-        """Access the underlying SQLite connection directly.
-
-        Synchronous method for Phase 0 that returns the connection
-        without context manager overhead.
+    def connection(self) -> aiosqlite.Connection:
+        """Access the underlying aiosqlite connection.
 
         Returns:
-            SQLite connection object.
+            aiosqlite connection object.
+
+        Raises:
+            StorageError: If connection is not initialized.
+        """
+        if self._connection is None:
+            raise StorageError("Database connection not initialized. Call init() first.")
+        return self._connection
+
+    async def init(self) -> None:
+        """Initialize the database connection and run migrations.
+
+        Raises:
+            StorageError: If database initialization fails.
+        """
+        async with self._lock:
+            if self._connection is None:
+                try:
+                    self._connection = await aiosqlite.connect(
+                        self.config.database_path,
+                    )
+                    self._connection.row_factory = aiosqlite.Row
+
+                    migrator = AsyncDatabaseMigrator(
+                        self._connection,
+                        Path("migrations"),
+                    )
+                    await migrator.migrate()
+                    logger.info("Database connection initialized and migrated")
+                except aiosqlite.Error as exc:
+                    logger.exception("Failed to initialize database connection")
+                    raise StorageError(f"Failed to initialize database connection: {exc}") from exc
+
+    @asynccontextmanager
+    async def get_connection(self) -> AsyncIterator[aiosqlite.Connection]:
+        """Get a database connection (async context manager).
+
+        Yields:
+            aiosqlite connection object.
 
         Raises:
             StorageError: If connection fails.
         """
         if self._connection is None:
-            try:
-                self._connection = sqlite3.connect(self.config.database_path, check_same_thread=False)
-                self._connection.row_factory = sqlite3.Row
-            except sqlite3.Error as exc:
-                logger.exception("Failed to get database connection")
-                raise StorageError(f"Failed to get database connection: {exc}") from exc
-
-        return self._connection
-
-    @asynccontextmanager
-    async def get_connection(self) -> AsyncIterator[sqlite3.Connection]:
-        """Get a database connection (async context manager for future phases).
-
-        Yields:
-            SQLite connection object.
-
-        Raises:
-            StorageError: If connection fails.
-        """
+            await self.init()
+        if self._connection is None:
+            raise StorageError("Database connection not initialized after init")
         try:
-            yield self.connection
-        except sqlite3.Error as exc:
-            logger.exception("Failed to get database connection")
-            raise StorageError(f"Failed to get database connection: {exc}") from exc
+            yield self._connection
+        except aiosqlite.Error as exc:
+            logger.exception("Database connection error")
+            raise StorageError(f"Database connection error: {exc}") from exc
 
     async def close(self) -> None:
         """Close the database connection."""
         async with self._lock:
             if self._connection is not None:
-                self._connection.close()
+                await self._connection.close()
                 self._connection = None
 
-    async def execute(self, query: str, params: tuple[Any, ...] = (), commit: bool = False) -> sqlite3.Cursor:
+    async def execute(
+        self,
+        query: str,
+        params: tuple[Any, ...] = (),
+        commit: bool = False,
+    ) -> aiosqlite.Cursor:
         """Execute a SQL query.
 
         Args:
@@ -161,19 +185,19 @@ class DatabaseConnection:
             StorageError: If query execution fails.
         """
         try:
-            async with self.get_connection() as conn:
-                cursor = conn.cursor()
-                cursor.execute(query, params)
-
-                if commit:
-                    conn.commit()
-
-                return cursor
-        except sqlite3.Error as exc:
+            cursor = await self.connection.execute(query, params)
+            if commit:
+                await self.connection.commit()
+            return cursor
+        except aiosqlite.Error as exc:
             logger.exception("Query execution failed")
             raise StorageError(f"Query execution failed: {exc}") from exc
 
-    async def fetch_all(self, query: str, params: tuple[Any, ...] = ()) -> list[dict[str, Any]]:
+    async def fetch_all(
+        self,
+        query: str,
+        params: tuple[Any, ...] = (),
+    ) -> list[dict[str, Any]]:
         """Fetch all rows from a query.
 
         Args:
@@ -184,9 +208,14 @@ class DatabaseConnection:
             List of row dictionaries.
         """
         cursor = await self.execute(query, params)
-        return [dict(row) for row in cursor.fetchall()]
+        rows = await cursor.fetchall()
+        return [dict(row) for row in rows]
 
-    async def fetch_one(self, query: str, params: tuple[Any, ...] = ()) -> dict[str, Any] | None:
+    async def fetch_one(
+        self,
+        query: str,
+        params: tuple[Any, ...] = (),
+    ) -> dict[str, Any] | None:
         """Fetch one row from a query.
 
         Args:
@@ -196,5 +225,6 @@ class DatabaseConnection:
         Returns:
             Row dictionary or None if not found.
         """
-        rows = await self.fetch_all(query, params)
-        return rows[0] if rows else None
+        cursor = await self.execute(query, params)
+        row = await cursor.fetchone()
+        return dict(row) if row else None

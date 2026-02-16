@@ -1,7 +1,7 @@
 """SQLite implementation of message repository.
 
 This module provides a concrete implementation of the message repository
-interface using SQLite as the storage backend.
+interface using SQLite as the storage backend with aiosqlite.
 """
 
 from datetime import datetime
@@ -13,7 +13,7 @@ from src.infrastructure.repositories.sqlite_base_repository import SQLiteReposit
 
 
 class SQLiteMessageRepository(SQLiteRepositoryBase, IMessageRepository):
-    """SQLite implementation of IMessageRepository."""
+    """SQLite implementation of IMessageRepository using aiosqlite."""
 
     async def save(self, message: ChatMessage) -> ChatMessage:
         """Save a chat message to the database.
@@ -24,7 +24,7 @@ class SQLiteMessageRepository(SQLiteRepositoryBase, IMessageRepository):
         Returns:
             The saved message with generated ID.
         """
-        message_id = self._insert_returning_id(
+        message_id = await self._insert_returning_id(
             """
             INSERT INTO chat_messages (user_id, provider, role, content, timestamp)
             VALUES (?, ?, ?, ?, ?)
@@ -56,7 +56,7 @@ class SQLiteMessageRepository(SQLiteRepositoryBase, IMessageRepository):
         Returns:
             The message if found, None otherwise.
         """
-        row = self._fetchone(
+        row = await self._fetchone(
             """
             SELECT id, user_id, provider, role, content, timestamp
             FROM chat_messages WHERE id = ?
@@ -81,7 +81,7 @@ class SQLiteMessageRepository(SQLiteRepositoryBase, IMessageRepository):
         Returns:
             List of messages for the user, ordered by timestamp descending.
         """
-        rows = self._fetchall(
+        rows = await self._fetchall(
             """
             SELECT id, user_id, provider, role, content, timestamp
             FROM chat_messages
@@ -102,12 +102,12 @@ class SQLiteMessageRepository(SQLiteRepositoryBase, IMessageRepository):
         Returns:
             Number of messages deleted.
         """
-        cur = self._execute(
+        cursor = await self._execute(
             "DELETE FROM chat_messages WHERE user_id = ?",
             (user_id,),
             commit=True,
         )
-        return cur.rowcount
+        return cursor.rowcount
 
     async def count_by_user_id(self, user_id: int) -> int:
         """Count messages for a user.
@@ -118,7 +118,7 @@ class SQLiteMessageRepository(SQLiteRepositoryBase, IMessageRepository):
         Returns:
             Number of messages for the user.
         """
-        row = self._fetchone(
+        row = await self._fetchone(
             "SELECT COUNT(*) FROM chat_messages WHERE user_id = ?",
             (user_id,),
         )

@@ -1,6 +1,7 @@
 """Pytest configuration and shared fixtures."""
 
-import sqlite3
+# pylint: disable=protected-access
+
 from datetime import datetime
 from unittest.mock import MagicMock
 
@@ -105,16 +106,31 @@ def fixture_mock_datetime_now() -> datetime:
 
 @pytest.fixture(name="mock_database_connection")
 def fixture_mock_database_connection(mocker: MockerFixture) -> MagicMock:
-    """Create a mocked database connection.
+    """Create a mocked async database connection.
 
     Args:
         mocker: pytest-mock fixture.
 
     Returns:
-        A mocked sqlite3.Connection instance.
+        A mocked aiosqlite.Connection-like instance with async methods.
     """
-    conn = mocker.MagicMock(spec=sqlite3.Connection)
-    cursor = mocker.MagicMock()
-    conn.cursor.return_value = cursor
-    conn.execute.return_value = cursor
+    conn = mocker.MagicMock()
+    cursor = mocker.AsyncMock()
+
+    # aiosqlite uses async methods
+    # connection.execute() returns cursor directly (no .cursor() method)
+    conn.execute = mocker.AsyncMock(return_value=cursor)
+    conn.commit = mocker.AsyncMock()
+    conn.close = mocker.AsyncMock()
+
+    # Cursor async methods
+    cursor.fetchone = mocker.AsyncMock()
+    cursor.fetchall = mocker.AsyncMock()
+    cursor.close = mocker.AsyncMock()
+    cursor.lastrowid = 1
+    cursor.rowcount = 0
+
+    # Store cursor for test access
+    conn._cursor = cursor
+
     return conn
