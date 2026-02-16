@@ -1,30 +1,31 @@
-"""Shared helpers for SQLite repositories (infrastructure layer)."""
+"""Shared helpers for SQLite repositories using aiosqlite."""
 
-import sqlite3
 from collections.abc import Sequence
 from typing import Any
+
+import aiosqlite
 
 from src.domain.errors.exceptions import RepositoryError, StorageError
 
 
 class SQLiteRepositoryBase:
-    """Base class to centralize sqlite execution + error mapping."""
+    """Base class to centralize async sqlite execution + error mapping."""
 
-    def __init__(self, connection: sqlite3.Connection) -> None:
+    def __init__(self, connection: aiosqlite.Connection) -> None:
         """Initialize SQLite repository base.
 
         Args:
-            connection: SQLite database connection.
+            connection: aiosqlite database connection.
         """
         self._connection = connection
 
-    def _execute(
+    async def _execute(
         self,
         sql: str,
         params: Sequence[Any] = (),
         *,
         commit: bool = False,
-    ) -> sqlite3.Cursor:
+    ) -> aiosqlite.Cursor:
         """Execute a SQL statement.
 
         Args:
@@ -39,14 +40,14 @@ class SQLiteRepositoryBase:
             StorageError: If the SQLite operation fails.
         """
         try:
-            cur = self._connection.execute(sql, params)
+            cursor = await self._connection.execute(sql, params)
             if commit:
-                self._connection.commit()
-            return cur
-        except sqlite3.Error as e:
+                await self._connection.commit()
+            return cursor
+        except aiosqlite.Error as e:
             raise StorageError(f"SQLite operation failed: {e}") from e
 
-    def _fetchone(self, sql: str, params: Sequence[Any] = ()) -> Any | None:
+    async def _fetchone(self, sql: str, params: Sequence[Any] = ()) -> Any | None:
         """Execute a SQL query and fetch a single row.
 
         Args:
@@ -56,10 +57,10 @@ class SQLiteRepositoryBase:
         Returns:
             A single row tuple if found, None otherwise.
         """
-        cur = self._execute(sql, params, commit=False)
-        return cur.fetchone()
+        cursor = await self._execute(sql, params, commit=False)
+        return await cursor.fetchone()
 
-    def _fetchall(self, sql: str, params: Sequence[Any] = ()) -> list[Any]:
+    async def _fetchall(self, sql: str, params: Sequence[Any] = ()) -> list[Any]:
         """Execute a SQL query and fetch all rows.
 
         Args:
@@ -69,10 +70,10 @@ class SQLiteRepositoryBase:
         Returns:
             List of row tuples.
         """
-        cur = self._execute(sql, params, commit=False)
-        return cur.fetchall()
+        cursor = await self._execute(sql, params, commit=False)
+        return list(await cursor.fetchall())
 
-    def _insert_returning_id(
+    async def _insert_returning_id(
         self,
         sql: str,
         params: Sequence[Any],
@@ -95,18 +96,18 @@ class SQLiteRepositoryBase:
             StorageError: If the insert operation fails or no ID is returned.
         """
         try:
-            cur = self._connection.execute(sql, params)
-            self._connection.commit()
+            cursor = await self._connection.execute(sql, params)
+            await self._connection.commit()
 
-            new_id = cur.lastrowid
-            if new_id is None:
+            lastrowid = cursor.lastrowid
+            if lastrowid is None:
                 raise StorageError("Failed to get lastrowid after insert")
-            return int(new_id)
+            return int(lastrowid)
 
-        except sqlite3.IntegrityError as e:
+        except aiosqlite.IntegrityError as e:
             if integrity_error_message:
                 raise RepositoryError(integrity_error_message) from e
             raise StorageError(f"SQLite integrity error: {e}") from e
 
-        except sqlite3.Error as e:
+        except aiosqlite.Error as e:
             raise StorageError(f"SQLite insert failed: {e}") from e

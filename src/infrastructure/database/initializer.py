@@ -9,7 +9,7 @@ from pathlib import Path
 from src.config.app import AppConfig
 from src.domain.errors.exceptions import StorageError
 from src.infrastructure.database.connection import DatabaseConnection
-from src.infrastructure.database.migrator import DatabaseMigrator
+from src.infrastructure.database.migrator import AsyncDatabaseMigrator
 
 _DEFAULT_MIGRATIONS_DIR: Path = Path("migrations")
 logger = getLogger(__name__)
@@ -35,9 +35,11 @@ async def initialize_database(
 
     try:
         connection = DatabaseConnection(config)
+        await connection.init()
+
         async with connection.get_connection() as conn:
-            migrator = DatabaseMigrator(conn, migrations_path)
-            migrator.migrate()
+            migrator = AsyncDatabaseMigrator(conn, migrations_path)
+            await migrator.migrate()
 
         return connection
     except Exception as exc:
