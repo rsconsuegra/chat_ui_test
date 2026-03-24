@@ -1,8 +1,10 @@
 """Unit tests for infrastructure layer using mocks."""
 
-import sqlite3
+# pylint: disable=protected-access
+
 from unittest.mock import MagicMock
 
+import aiosqlite
 import pytest
 
 from src.domain.errors.exceptions import StorageError
@@ -31,8 +33,8 @@ class TestSQLiteUserRepositoryUnit:
         repo = SQLiteUserRepository(mock_database_connection)
         user = User.create_new("testuser")
 
-        # Mock cursor
-        mock_cursor = mock_database_connection.cursor.return_value
+        # Mock cursor - aiosqlite returns cursor from execute()
+        mock_cursor = mock_database_connection._cursor
         mock_cursor.lastrowid = 42
 
         saved_user = await repo.save(user)
@@ -51,7 +53,7 @@ class TestSQLiteUserRepositoryUnit:
         repo = SQLiteUserRepository(mock_database_connection)
 
         # Mock cursor.fetchone to return user data
-        mock_cursor = mock_database_connection.cursor.return_value
+        mock_cursor = mock_database_connection._cursor
         mock_cursor.fetchone.return_value = (
             1,
             "testuser",
@@ -75,7 +77,7 @@ class TestSQLiteUserRepositoryUnit:
         """
         repo = SQLiteUserRepository(mock_database_connection)
 
-        mock_cursor = mock_database_connection.cursor.return_value
+        mock_cursor = mock_database_connection._cursor
         mock_cursor.fetchone.return_value = None
 
         user = await repo.find_by_id(999)
@@ -92,7 +94,7 @@ class TestSQLiteUserRepositoryUnit:
         """
         repo = SQLiteUserRepository(mock_database_connection)
 
-        mock_cursor = mock_database_connection.cursor.return_value
+        mock_cursor = mock_database_connection._cursor
         mock_cursor.fetchone.return_value = (
             1,
             "testuser",
@@ -115,7 +117,7 @@ class TestSQLiteUserRepositoryUnit:
         """
         repo = SQLiteUserRepository(mock_database_connection)
 
-        mock_cursor = mock_database_connection.cursor.return_value
+        mock_cursor = mock_database_connection._cursor
         mock_cursor.fetchone.return_value = (1,)
 
         exists = await repo.exists("testuser")
@@ -132,7 +134,7 @@ class TestSQLiteUserRepositoryUnit:
         """
         repo = SQLiteUserRepository(mock_database_connection)
 
-        mock_cursor = mock_database_connection.cursor.return_value
+        mock_cursor = mock_database_connection._cursor
         mock_cursor.fetchone.return_value = None
 
         exists = await repo.exists("nonexistent")
@@ -159,7 +161,7 @@ class TestSQLiteMessageRepositoryUnit:
             role=MessageRole.USER,
         )
 
-        mock_cursor = mock_database_connection.cursor.return_value
+        mock_cursor = mock_database_connection._cursor
         mock_cursor.lastrowid = 100
 
         saved_message = await repo.save(message)
@@ -177,7 +179,7 @@ class TestSQLiteMessageRepositoryUnit:
         """
         repo = SQLiteMessageRepository(mock_database_connection)
 
-        mock_cursor = mock_database_connection.cursor.return_value
+        mock_cursor = mock_database_connection._cursor
         mock_cursor.fetchone.return_value = (
             1,
             42,
@@ -204,7 +206,7 @@ class TestSQLiteMessageRepositoryUnit:
         """
         repo = SQLiteMessageRepository(mock_database_connection)
 
-        mock_cursor = mock_database_connection.cursor.return_value
+        mock_cursor = mock_database_connection._cursor
         mock_cursor.fetchall.return_value = [
             (1, 42, "ollama", "user", "Hello", "2024-01-01 12:00:00"),
             (2, 42, "ollama", "assistant", "Hi there!", "2024-01-01 12:01:00"),
@@ -226,7 +228,7 @@ class TestSQLiteMessageRepositoryUnit:
         """
         repo = SQLiteMessageRepository(mock_database_connection)
 
-        mock_cursor = mock_database_connection.cursor.return_value
+        mock_cursor = mock_database_connection._cursor
         mock_cursor.rowcount = 5
 
         deleted = await repo.delete_by_user_id(42)
@@ -243,7 +245,7 @@ class TestSQLiteMessageRepositoryUnit:
         """
         repo = SQLiteMessageRepository(mock_database_connection)
 
-        mock_cursor = mock_database_connection.cursor.return_value
+        mock_cursor = mock_database_connection._cursor
         mock_cursor.fetchone.return_value = (10,)
 
         count = await repo.count_by_user_id(42)
@@ -265,7 +267,7 @@ class TestRepositoryErrorHandling:
         repo = SQLiteUserRepository(mock_database_connection)
 
         # Simulate database error
-        mock_database_connection.execute.side_effect = sqlite3.Error("Database error")
+        mock_database_connection.execute.side_effect = aiosqlite.Error("Database error")
 
         with pytest.raises(StorageError):
             await repo.save(User.create_new("testuser"))
@@ -280,7 +282,7 @@ class TestRepositoryErrorHandling:
         """
         repo = SQLiteMessageRepository(mock_database_connection)
 
-        mock_database_connection.execute.side_effect = sqlite3.Error("Database error")
+        mock_database_connection.execute.side_effect = aiosqlite.Error("Database error")
 
         with pytest.raises(StorageError):
             await repo.save(

@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- aiosqlite dependency for true async SQLite support
+- pytest-asyncio for async test support
 - Centralized pylint configuration in `.code_quality/.pylintrc`
 - Frontend adapter architecture for UI decoupling
   - ISessionAdapter: abstract session management interface
@@ -20,6 +22,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - FrontendError exception for adapter-related errors
 
 ### Changed
+- Migrated from sync sqlite3 to aiosqlite for true async database operations
+- All repository methods now use proper async/await with aiosqlite
+- Connection management now uses aiosqlite.Connection
+- Database migrator updated for async migrations
+- Tests updated to use pytest-asyncio with auto mode
 - SendMessageUseCase now delegates to LoadHistoryUseCase and GetSystemPromptUseCase
 - main.py simplified to use adapters via Container (better separation of concerns)
 - Container updated with factory methods for all use cases and adapters
@@ -29,6 +36,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Provider imports updated to use direct module paths
 - Pre-commit pylint now uses centralized `.pylintrc` config
 - Removed inline pylint disables (moved to centralized config)
+
+### Removed
+- async_sqlite_base.py (replaced by proper aiosqlite in sqlite_base_repository.py)
+- memory_repository.py (dead code, not used anywhere)
+>>>>>>> 85e5660 (refactor: migrate from sync sqlite3 to aiosqlite)
 
 ### Architecture
 - Frontend is now decoupled from Chainlit via adapter interfaces

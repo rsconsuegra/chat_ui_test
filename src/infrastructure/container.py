@@ -4,6 +4,8 @@ This module provides centralized dependency injection and management
 for the application, following Clean Architecture principles.
 """
 
+import aiosqlite
+
 from src.application.use_cases.get_system_prompt import GetSystemPromptUseCase
 from src.application.use_cases.load_history import LoadHistoryUseCase
 from src.application.use_cases.send_message import SendMessageUseCase
@@ -16,7 +18,6 @@ from src.domain.repositories.user_repository import IUserRepository
 from src.infrastructure.adapters.chainlit.message_adapter import ChainlitMessageAdapter
 from src.infrastructure.adapters.chainlit.session_adapter import ChainlitSessionAdapter
 from src.infrastructure.adapters.providers.factory import build_provider
-from src.infrastructure.database.connection import DatabaseConnection
 from src.infrastructure.repositories.sqlite_message_repository import (
     SQLiteMessageRepository,
 )
@@ -36,7 +37,7 @@ class Container:  # pylint: disable=too-many-instance-attributes
         self,
         *,
         config: AppConfig,
-        database_connection: DatabaseConnection | None = None,
+        database_connection: aiosqlite.Connection | None = None,
         message_repository: IMessageRepository | None = None,
         user_repository: IUserRepository | None = None,
         provider: Provider | None = None,
@@ -67,14 +68,25 @@ class Container:  # pylint: disable=too-many-instance-attributes
         self._get_system_prompt_use_case: GetSystemPromptUseCase | None = None
         self._send_message_use_case: SendMessageUseCase | None = None
 
-    def get_database_connection(self) -> DatabaseConnection:
-        """Get database connection, creating if needed.
+    def set_database_connection(self, connection: aiosqlite.Connection) -> None:
+        """Set the database connection.
+
+        Args:
+            connection: aiosqlite connection to use.
+        """
+        self._db_connection = connection
+
+    def get_database_connection(self) -> aiosqlite.Connection:
+        """Get database connection.
 
         Returns:
             Database connection instance.
+
+        Raises:
+            RuntimeError: If database connection is not initialized.
         """
         if self._db_connection is None:
-            self._db_connection = DatabaseConnection(self._config)
+            raise RuntimeError("Database connection not initialized. Call set_database_connection() first or use async init.")
         return self._db_connection
 
     def get_message_repository(self) -> IMessageRepository:
@@ -85,7 +97,7 @@ class Container:  # pylint: disable=too-many-instance-attributes
         """
         if self._message_repository is None:
             self._message_repository = SQLiteMessageRepository(
-                self.get_database_connection().connection,
+                self.get_database_connection(),
             )
         return self._message_repository
 
@@ -97,7 +109,7 @@ class Container:  # pylint: disable=too-many-instance-attributes
         """
         if self._user_repository is None:
             self._user_repository = SQLiteUserRepository(
-                self.get_database_connection().connection,
+                self.get_database_connection(),
             )
         return self._user_repository
 

@@ -1,32 +1,32 @@
 """Tests for database migrations."""
 
-import sqlite3
-from collections.abc import Generator
+from collections.abc import AsyncGenerator
 from datetime import datetime
 from pathlib import Path
 
+import aiosqlite
 import pytest
 
 from src.config.database import DatabaseConfig
 from src.domain.errors.exceptions import StorageError
 from src.infrastructure.database.migrator import (
-    DatabaseMigrator,
+    AsyncDatabaseMigrator,
     MigrationRecord,
     run_migrations,
 )
 
 
 @pytest.fixture(name="in_memory_db")
-def fixture_in_memory_db() -> Generator[sqlite3.Connection, None, None]:
+async def fixture_in_memory_db() -> AsyncGenerator[aiosqlite.Connection, None]:
     """Create in-memory database for testing.
 
     Yields:
         In-memory SQLite connection.
     """
-    conn = sqlite3.connect(":memory:")
-    conn.row_factory = sqlite3.Row
+    conn = await aiosqlite.connect(":memory:")
+    conn.row_factory = aiosqlite.Row
     yield conn
-    conn.close()
+    await conn.close()
 
 
 @pytest.fixture(name="migrations_dir")
@@ -44,25 +44,25 @@ def fixture_migrations_dir(tmp_path: Path) -> Path:
     return migrations_dir
 
 
-def test_migrator_creates_tracking_table(
-    in_memory_db: sqlite3.Connection,
+async def test_migrator_creates_tracking_table(
+    in_memory_db: aiosqlite.Connection,
 ) -> None:
     """Test that migrator creates schema_migrations tracking table.
 
     Args:
         in_memory_db: In-memory SQLite connection.
     """
-    migrator = DatabaseMigrator(in_memory_db)
-    migrator.migrate()
+    migrator = AsyncDatabaseMigrator(in_memory_db)
+    await migrator.migrate()
 
-    cursor = in_memory_db.cursor()
-    result = cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='schema_migrations'").fetchone()
+    cursor = await in_memory_db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='schema_migrations'")
+    result = await cursor.fetchone()
 
     assert result is not None
 
 
-def test_migrator_applies_sql_files(
-    in_memory_db: sqlite3.Connection,
+async def test_migrator_applies_sql_files(
+    in_memory_db: aiosqlite.Connection,
     migrations_dir: Path,
 ) -> None:
     """Test that migrator applies SQL migration files.
@@ -81,17 +81,17 @@ def test_migrator_applies_sql_files(
         """
     )
 
-    migrator = DatabaseMigrator(in_memory_db, migrations_dir)
-    migrator.migrate()
+    migrator = AsyncDatabaseMigrator(in_memory_db, migrations_dir)
+    await migrator.migrate()
 
-    cursor = in_memory_db.cursor()
-    result = cursor.execute("SELECT name FROM sqlite_master WHERE name='test_table'").fetchone()
+    cursor = await in_memory_db.execute("SELECT name FROM sqlite_master WHERE name='test_table'")
+    result = await cursor.fetchone()
 
     assert result is not None
 
 
-def test_migrator_tracks_applied_migrations(
-    in_memory_db: sqlite3.Connection,
+async def test_migrator_tracks_applied_migrations(
+    in_memory_db: aiosqlite.Connection,
     migrations_dir: Path,
 ) -> None:
     """Test that migrator tracks which migrations have been applied.
@@ -103,17 +103,17 @@ def test_migrator_tracks_applied_migrations(
     migration_file = migrations_dir / "002_test_tracking.sql"
     migration_file.write_text("CREATE TABLE test_tracking (id INTEGER);")
 
-    migrator = DatabaseMigrator(in_memory_db, migrations_dir)
-    migrator.migrate()
+    migrator = AsyncDatabaseMigrator(in_memory_db, migrations_dir)
+    await migrator.migrate()
 
-    history = migrator.get_migration_history()
+    history = await migrator.get_migration_history()
 
     assert len(history) > 0
     assert any(m.migration_id == "002_test_tracking" for m in history)
 
 
-def test_migrator_skips_already_applied(
-    in_memory_db: sqlite3.Connection,
+async def test_migrator_skips_already_applied(
+    in_memory_db: aiosqlite.Connection,
     migrations_dir: Path,
 ) -> None:
     """Test that migrator skips migrations that are already applied.
@@ -125,19 +125,19 @@ def test_migrator_skips_already_applied(
     migration_file = migrations_dir / "003_skip_test.sql"
     migration_file.write_text("CREATE TABLE skip_test (id INTEGER);")
 
-    migrator = DatabaseMigrator(in_memory_db, migrations_dir)
+    migrator = AsyncDatabaseMigrator(in_memory_db, migrations_dir)
 
-    migrator.migrate()
-    migrator.migrate()
+    await migrator.migrate()
+    await migrator.migrate()
 
-    history = migrator.get_migration_history()
+    history = await migrator.get_migration_history()
 
     skip_count = sum(1 for m in history if m.migration_id == "003_skip_test")
     assert skip_count == 1
 
 
-def test_migrator_applies_migrations_in_order(
-    in_memory_db: sqlite3.Connection,
+async def test_migrator_applies_migrations_in_order(
+    in_memory_db: aiosqlite.Connection,
     migrations_dir: Path,
 ) -> None:
     """Test that migrations are applied in alphabetical order.
@@ -155,10 +155,10 @@ def test_migrator_applies_migrations_in_order(
     for filename, sql in migration_files:
         (migrations_dir / filename).write_text(sql)
 
-    migrator = DatabaseMigrator(in_memory_db, migrations_dir)
-    migrator.migrate()
+    migrator = AsyncDatabaseMigrator(in_memory_db, migrations_dir)
+    await migrator.migrate()
 
-    history = migrator.get_migration_history()
+    history = await migrator.get_migration_history()
 
     migration_ids = [m.migration_id for m in history]
     expected_order = ["001_first", "002_second", "003_third"]
@@ -166,8 +166,8 @@ def test_migrator_applies_migrations_in_order(
     assert migration_ids == expected_order
 
 
-def test_migrator_handles_invalid_sql(
-    in_memory_db: sqlite3.Connection,
+async def test_migrator_handles_invalid_sql(
+    in_memory_db: aiosqlite.Connection,
     migrations_dir: Path,
 ) -> None:
     """Test that migrator raises StorageError on invalid SQL.
@@ -179,10 +179,10 @@ def test_migrator_handles_invalid_sql(
     invalid_file = migrations_dir / "004_invalid.sql"
     invalid_file.write_text("INVALID SQL SYNTAX;")
 
-    migrator = DatabaseMigrator(in_memory_db, migrations_dir)
+    migrator = AsyncDatabaseMigrator(in_memory_db, migrations_dir)
 
     with pytest.raises(StorageError, match="Failed to apply migration 004_invalid"):
-        migrator.migrate()
+        await migrator.migrate()
 
 
 def test_migration_record_dataclass() -> None:
@@ -198,7 +198,7 @@ def test_migration_record_dataclass() -> None:
     assert record.applied_at == datetime(2025, 1, 1, 12, 0, 0)
 
 
-def test_run_migrations_with_config(  # pylint disable=unused-argument
+async def test_run_migrations_with_config(
     migrations_dir: Path,
 ) -> None:
     """Test run_migrations function with DatabaseConfig.
@@ -212,17 +212,17 @@ def test_run_migrations_with_config(  # pylint disable=unused-argument
     db_path = migrations_dir / "test.db"
 
     config = DatabaseConfig(path=str(db_path))
-    run_migrations(config, migrations_dir)
+    await run_migrations(config, migrations_dir)
 
-    conn = sqlite3.connect(str(db_path))
-    result = conn.execute("SELECT name FROM sqlite_master WHERE name='test_run'").fetchone()
-    conn.close()
+    async with aiosqlite.connect(str(db_path)) as conn:
+        cursor = await conn.execute("SELECT name FROM sqlite_master WHERE name='test_run'")
+        result = await cursor.fetchone()
 
     assert result is not None
 
 
-def test_migrator_handles_missing_migrations_dir(
-    in_memory_db: sqlite3.Connection,
+async def test_migrator_handles_missing_migrations_dir(
+    in_memory_db: aiosqlite.Connection,
     tmp_path: Path,
 ) -> None:
     """Test that migrator handles missing migrations directory gracefully.
@@ -233,9 +233,9 @@ def test_migrator_handles_missing_migrations_dir(
     """
     nonexistent_dir = tmp_path / "nonexistent"
 
-    migrator = DatabaseMigrator(in_memory_db, nonexistent_dir)
+    migrator = AsyncDatabaseMigrator(in_memory_db, nonexistent_dir)
 
-    migrator.migrate()
+    await migrator.migrate()
 
-    history = migrator.get_migration_history()
+    history = await migrator.get_migration_history()
     assert len(history) == 0

@@ -1,7 +1,7 @@
 """SQLite implementation of user repository.
 
 This module provides a concrete implementation of the user repository
-interface using SQLite as the storage backend.
+interface using SQLite as the storage backend with aiosqlite.
 """
 
 from datetime import datetime
@@ -12,7 +12,7 @@ from src.infrastructure.repositories.sqlite_base_repository import SQLiteReposit
 
 
 class SQLiteUserRepository(SQLiteRepositoryBase, IUserRepository):
-    """SQLite implementation of IUserRepository."""
+    """SQLite implementation of IUserRepository using aiosqlite."""
 
     async def save(self, user: User) -> User:
         """Save a user to the database.
@@ -23,7 +23,7 @@ class SQLiteUserRepository(SQLiteRepositoryBase, IUserRepository):
         Returns:
             The saved user with generated ID.
         """
-        user_id = self._insert_returning_id(
+        user_id = await self._insert_returning_id(
             """
             INSERT INTO users (username, created_at, updated_at)
             VALUES (?, ?, ?)
@@ -48,7 +48,7 @@ class SQLiteUserRepository(SQLiteRepositoryBase, IUserRepository):
         Returns:
             The user if found, None otherwise.
         """
-        row = self._fetchone(
+        row = await self._fetchone(
             "SELECT id, username, created_at, updated_at FROM users WHERE id = ?",
             (user_id,),
         )
@@ -63,7 +63,7 @@ class SQLiteUserRepository(SQLiteRepositoryBase, IUserRepository):
         Returns:
             The user if found, None otherwise.
         """
-        row = self._fetchone(
+        row = await self._fetchone(
             "SELECT id, username, created_at, updated_at FROM users WHERE username = ?",
             (username.lower(),),
         )
@@ -78,7 +78,7 @@ class SQLiteUserRepository(SQLiteRepositoryBase, IUserRepository):
         Returns:
             True if user exists, False otherwise.
         """
-        row = self._fetchone(
+        row = await self._fetchone(
             "SELECT COUNT(*) FROM users WHERE username = ?",
             (username.lower(),),
         )
@@ -107,8 +107,12 @@ class SQLiteUserRepository(SQLiteRepositoryBase, IUserRepository):
         Returns:
             True if user was deleted, False if not found.
         """
-        cur = self._execute("DELETE FROM users WHERE id = ?", (user_id,), commit=True)
-        return cur.rowcount > 0
+        cursor = await self._execute(
+            "DELETE FROM users WHERE id = ?",
+            (user_id,),
+            commit=True,
+        )
+        return cursor.rowcount > 0
 
     @staticmethod
     def _row_to_user(row: tuple) -> User:

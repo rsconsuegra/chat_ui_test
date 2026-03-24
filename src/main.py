@@ -20,6 +20,7 @@ async def on_chat_start() -> None:
         ChatAppError: If database initialization or user creation fails.
         Exception: If an unexpected error occurs.
     """
+    container: Container | None = None
     try:
         container = get_container()
         cl.user_session.set("container", container)
@@ -52,13 +53,15 @@ async def on_chat_start() -> None:
 
     except ChatAppError as exc:
         logger.exception("Chat initialization failed")
-        message_adapter = container.get_message_adapter()
-        await message_adapter.send_message(f"Error initializing chat: {exc}")
+        if container:
+            message_adapter = container.get_message_adapter()
+            await message_adapter.send_message(f"Error initializing chat: {exc}")
         raise
     except Exception as exc:
         logger.exception("Unexpected chat initialization error")
-        message_adapter = container.get_message_adapter()
-        await message_adapter.send_message(f"Unexpected error initializing chat: {exc}")
+        if container:
+            message_adapter = container.get_message_adapter()
+            await message_adapter.send_message(f"Unexpected error initializing chat: {exc}")
         raise
 
 
@@ -113,13 +116,17 @@ async def on_message(message: cl.Message) -> None:
 
     except ChatAppError as exc:
         logger.exception("Chat message processing failed")
-        message_adapter = container.get_message_adapter()
-        await message_adapter.send_message(f"Error processing message: {exc}")
+        container = cl.user_session.get("container")
+        if isinstance(container, Container):
+            message_adapter = container.get_message_adapter()
+            await message_adapter.send_message(f"Error processing message: {exc}")
         raise
     except Exception as exc:
         logger.exception("Unexpected chat message processing error")
-        message_adapter = container.get_message_adapter()
-        await message_adapter.send_message(f"Unexpected error processing message: {exc}")
+        container = cl.user_session.get("container")
+        if isinstance(container, Container):
+            message_adapter = container.get_message_adapter()
+            await message_adapter.send_message(f"Unexpected error processing message: {exc}")
         raise
 
 
