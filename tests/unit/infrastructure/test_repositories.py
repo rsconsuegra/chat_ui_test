@@ -2,9 +2,9 @@
 
 # pylint: disable=protected-access
 
-import sqlite3
 from unittest.mock import MagicMock
 
+import aiosqlite
 import pytest
 
 from src.domain.errors.exceptions import StorageError
@@ -267,7 +267,7 @@ class TestRepositoryErrorHandling:
         repo = SQLiteUserRepository(mock_database_connection)
 
         # Simulate database error
-        mock_database_connection.execute.side_effect = sqlite3.Error("Database error")
+        mock_database_connection.execute.side_effect = aiosqlite.Error("Database error")
 
         with pytest.raises(StorageError):
             await repo.save(User.create_new("testuser"))
@@ -282,7 +282,7 @@ class TestRepositoryErrorHandling:
         """
         repo = SQLiteMessageRepository(mock_database_connection)
 
-        mock_database_connection.execute.side_effect = sqlite3.Error("Database error")
+        mock_database_connection.execute.side_effect = aiosqlite.Error("Database error")
 
         with pytest.raises(StorageError):
             await repo.save(
